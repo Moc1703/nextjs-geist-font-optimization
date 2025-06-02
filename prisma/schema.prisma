@@ -1,0 +1,111 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(BRAND)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  brandCampaigns      Campaign[]          @relation("BrandCampaigns")
+  influencerProfile   InfluencerProfile?
+  campaignInfluencers CampaignInfluencer[]
+}
+
+enum Role {
+  BRAND
+  INFLUENCER
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  name        String
+  budget      Float
+  startDate   DateTime
+  endDate     DateTime
+  status      CampaignStatus @default(DRAFT)
+  brief       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  brandId     String
+  brand       User     @relation("BrandCampaigns", fields: [brandId], references: [id])
+  influencers CampaignInfluencer[]
+  reports     Report[]
+
+  @@index([brandId])
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model InfluencerProfile {
+  id           String   @id @default(cuid())
+  niches       String[] // Array of niche categories
+  followers    Int
+  engagement   Float
+  mediaKitUrl  String?
+  location     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id])
+  campaigns    CampaignInfluencer[]
+}
+
+model CampaignInfluencer {
+  id          String   @id @default(cuid())
+  status      ApplicationStatus @default(PENDING)
+  feedback    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+  influencerId String
+  influencer   User    @relation(fields: [influencerId], references: [id], map: "CampaignInfluencer_influencer")
+  influencerProfile InfluencerProfile? @relation(fields: [influencerId], references: [userId], map: "CampaignInfluencer_profile")
+  
+  @@unique([campaignId, influencerId])
+  @@index([campaignId])
+  @@index([influencerId])
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  metrics     Json     // Stores campaign performance metrics
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+}
